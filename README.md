@@ -100,7 +100,9 @@ The style motion is tracked with EMICA module in <a href="https://github.com/xg-
 
 This version modifies the VQVAE part compared to the paper version.
 
-The training code and the paper version code are still in preparation and are expected to be released later.
+<!-- The training code and the paper version code are still in preparation and are expected to be released later. -->
+The training code has been released for reference. This code is also similar to the <a href="https://github.com/xg-chu/UniLS">UniLS training code</a>.
+
 
 ## huggingface DockerFile 
 
