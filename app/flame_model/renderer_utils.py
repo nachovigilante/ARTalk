@@ -54,6 +54,10 @@ class RenderMesh(nn.Module):
 
     @torch.no_grad()
     def forward(self, vertices, cameras=None, transform_matrix=None, focal_length=None):
+        # pytorch3d rasterizer only supports CPU and CUDA; move off MPS if needed
+        _orig_device = vertices.device
+        if vertices.device.type == 'mps':
+            vertices = vertices.cpu()
         if cameras is None and transform_matrix is not None:
             cameras = self._build_cameras(transform_matrix, focal_length, device=vertices.device)
         if cameras is None and transform_matrix is None:

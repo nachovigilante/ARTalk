@@ -15,8 +15,16 @@ from app import BitwiseARModel
 from app.flame_model import FLAMEModel, RenderMesh
 from app.utils_videos import write_video
 
+def _default_device():
+    if torch.cuda.is_available():
+        return 'cuda'
+    if torch.backends.mps.is_available():
+        return 'mps'
+    return 'cpu'
+
 class ARTAvatarInferEngine:
-    def __init__(self, load_gaga=False, fix_pose=False, clip_length=750, device='cuda'):
+    def __init__(self, load_gaga=False, fix_pose=False, clip_length=750, device=None):
+        device = device or _default_device()
         self.device = device
         self.fix_pose = fix_pose
         self.clip_length = clip_length
@@ -222,11 +230,19 @@ if __name__ == '__main__':
     parser.add_argument("--run_app", action='store_true')
     args = parser.parse_args()
 
-    engine = ARTAvatarInferEngine(load_gaga=True, fix_pose=False, clip_length=args.clip_length)
+    load_gaga = not args.run_app  # GAGAvatar requires CUDA; skip for app mode on non-CUDA
+    try:
+        from app.GAGAvatar import GAGAvatar  # noqa: F401
+        load_gaga = load_gaga and torch.cuda.is_available()
+    except ImportError:
+        load_gaga = False
+    engine = ARTAvatarInferEngine(load_gaga=load_gaga, fix_pose=False, clip_length=args.clip_length)
     if args.run_app:
         run_gradio_app(engine)
     else:
-        shape_id = 'mesh' if args.shape_id not in engine.GAGAvatar.all_gagavatar_id.keys() else args.shape_id
+        shape_id = 'mesh'
+        if hasattr(engine, 'GAGAvatar') and args.shape_id in engine.GAGAvatar.all_gagavatar_id.keys():
+            shape_id = args.shape_id
         audio, sr = torchaudio.load(args.audio_path)
         audio = torchaudio.transforms.Resample(sr, 16000)(audio).mean(dim=0)
 

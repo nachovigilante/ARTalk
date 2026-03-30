@@ -91,7 +91,12 @@ class BitwiseARModel(nn.Module):
         all_pred_motions = []
         for idx in range(len(audio_chunks)):
             split_audio_feat = self.audio_encoder(audio_chunks[idx]).permute(0, 2, 1) # B, L, C -> B, C, L
-            split_audio_feats = [F.interpolate(split_audio_feat, size=(pn), mode='area').permute(0, 2, 1) for pn in self.patch_nums] # B, L, C
+            # MPS doesn't support adaptive_avg_pool1d with non-divisible sizes; fall back to CPU
+            if split_audio_feat.device.type == 'mps':
+                _feat_cpu = split_audio_feat.cpu()
+                split_audio_feats = [F.interpolate(_feat_cpu, size=(pn), mode='area').permute(0, 2, 1).to(split_audio_feat.device) for pn in self.patch_nums]
+            else:
+                split_audio_feats = [F.interpolate(split_audio_feat, size=(pn), mode='area').permute(0, 2, 1) for pn in self.patch_nums] # B, L, C
             split_audio_cond = torch.cat(split_audio_feats, dim=1).detach()
             next_ar_vqfeat = motion_style_cond
             for pidx, pn in enumerate(self.patch_nums):

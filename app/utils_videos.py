@@ -6,6 +6,8 @@ import torch
 import numpy as np
 
 def write_video(video_frames, output_path, fps, audio_samples=None, sample_rate=None, acodec="aac"):
+    from fractions import Fraction
+    fps = Fraction(fps).limit_denominator(10000)
     assert video_frames.ndim == 4, "Input frames should be a 4D array."
     assert video_frames.shape[1] == 3, "Input frames should have 3 channels (RGB)."
     if isinstance(video_frames, torch.Tensor):

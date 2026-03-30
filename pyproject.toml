@@ -1,0 +1,61 @@
+[project]
+name = "artalk"
+version = "0.1.0"
+description = "ARTalk: Speech-Driven 3D Head Animation via Autoregressive Model"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # Core ML
+    "torch>=2.4.0",
+    "torchvision>=0.19.0",
+    "torchaudio>=2.4.0",
+    "torchcodec>=0.11.0",
+    # 3D rendering (FLAME model) — installed separately, see README
+    # "pytorch3d>=0.7.8",
+    # Audio & NLP
+    "transformers>=4.45.0",
+    "tokenizers>=0.20.0",
+    "gtts>=2.5.4",
+    # Image & Video
+    "av>=13.0.0",
+    "opencv-python>=4.10.0",
+    "imageio>=2.35.0",
+    "Pillow>=10.4.0",
+    "scikit-image>=0.24.0",
+    # Numeric / scientific
+    "numpy>=1.26.0",
+    "scipy>=1.14.0",
+    # NN utilities
+    "einops>=0.8.0",
+    # Web UI
+    "gradio>=5.22.0",
+    # Config & utilities
+    "omegaconf>=2.3.0",
+    "pyyaml>=6.0",
+    "tqdm>=4.66.0",
+    "safetensors>=0.4.0",
+    "huggingface-hub>=0.29.0",
+    # Training (optional but included for completeness)
+    "pytorch-lightning>=2.4.0",
+    "onnx>=1.16.0",
+    "onnx2torch>=1.5.0",
+    # Misc
+    "pydub>=0.25.1",
+    "fvcore>=0.1.5",
+    "iopath>=0.1.10",
+    "face-alignment>=1.4.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+find-links = [
+    "https://download.pytorch.org/whl/cpu",
+]
+
+# pytorch3d must be installed separately after the venv is set up:
+#   uv pip install "pytorch3d @ git+https://github.com/facebookresearch/pytorch3d.git"

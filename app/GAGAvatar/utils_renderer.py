@@ -16,7 +16,7 @@ def render_gaussian(gs_params, cam_matrix, cam_params=None, sh_degree=0, bg_colo
     view_mat, proj_mat, cam_pos = build_camera_matrices(cam_matrix, focal_x, focal_y)
     bg_color = cam_matrix.new_zeros(batch_size, NUM_CHANNELS, dtype=torch.float32) if bg_color is None else bg_color
     # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
-    means2D = torch.zeros_like(points, dtype=points.dtype, requires_grad=True, device="cuda") + 0
+    means2D = torch.zeros_like(points, dtype=points.dtype, requires_grad=True, device=points.device) + 0
     try:
         means2D.retain_grad()
     except:
