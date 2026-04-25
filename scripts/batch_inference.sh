@@ -15,6 +15,7 @@ Options:
   -i, --shape ID        Shape/appearance ID (default: mesh)
   -l, --clip-length N   Max frames to render (0 = full audio length, default: 0)
   -o, --output DIR      Output directory (default: render_results/batch)
+      --no-render       Skip video rendering; only save motion tensors (.pt)
   -h, --help            Show this help message
 EOF
     exit "${1:-0}"
@@ -25,6 +26,7 @@ STYLE_ID="natural_0"
 SHAPE_ID="mesh"
 CLIP_LENGTH=0
 OUTPUT_DIR=""
+NO_RENDER=0
 
 # Parse args
 WAV_DIR=""
@@ -34,6 +36,7 @@ while [[ $# -gt 0 ]]; do
         -i|--shape)      SHAPE_ID="$2"; shift 2 ;;
         -l|--clip-length) CLIP_LENGTH="$2"; shift 2 ;;
         -o|--output)     OUTPUT_DIR="$2"; shift 2 ;;
+        --no-render)     NO_RENDER=1; shift ;;
         -h|--help)       usage 0 ;;
         -*)              echo "Unknown option: $1" >&2; usage 1 ;;
         *)
@@ -77,12 +80,12 @@ if [[ ${#WAV_FILES[@]} -eq 0 ]]; then
 fi
 
 echo "Found ${#WAV_FILES[@]} wav file(s) in '$WAV_DIR'"
-echo "Style: $STYLE_ID | Shape: $SHAPE_ID | Clip length: $CLIP_LENGTH"
+echo "Style: $STYLE_ID | Shape: $SHAPE_ID | Clip length: $CLIP_LENGTH | Render: $([[ $NO_RENDER -eq 1 ]] && echo off || echo on)"
 echo "---"
 
 # Run batch inference via a single Python process to avoid reloading the model per file
 OUTPUT_DIR="${OUTPUT_DIR:-$PROJECT_DIR/render_results/batch}"
-exec "$VENV_PYTHON" - "$PROJECT_DIR" "$STYLE_ID" "$SHAPE_ID" "$CLIP_LENGTH" "$OUTPUT_DIR" "${WAV_FILES[@]}" <<'PYEOF'
+exec "$VENV_PYTHON" - "$PROJECT_DIR" "$STYLE_ID" "$SHAPE_ID" "$CLIP_LENGTH" "$OUTPUT_DIR" "$NO_RENDER" "${WAV_FILES[@]}" <<'PYEOF'
 import sys
 import os
 import torch
@@ -95,7 +98,8 @@ style_id = args[1]
 shape_id = args[2]
 clip_length = int(args[3])
 output_dir = args[4]
-wav_files = args[5:]
+no_render = args[5] == "1"
+wav_files = args[6:]
 
 os.chdir(project_dir)
 sys.path.insert(0, ".")
@@ -115,20 +119,31 @@ if style_id != "default":
     engine.set_style_motion(style_id)
 
 total = len(wav_files)
+import math
+
 for idx, wav_path in enumerate(wav_files, 1):
     basename = os.path.splitext(os.path.basename(wav_path))[0]
     save_name = f"{basename}_{style_id}_{shape_id}"
+    motions_path = os.path.join(output_dir, f"{save_name}_motions.pt")
+
+    if no_render and os.path.exists(motions_path):
+        print(f"[{idx}/{total}] Skip (exists): {os.path.basename(wav_path)}")
+        continue
+
     print(f"\n[{idx}/{total}] Processing: {os.path.basename(wav_path)}")
 
     audio, sr = torchaudio.load(wav_path)
     audio = torchaudio.transforms.Resample(sr, 16000)(audio).mean(dim=0)
 
-    import math
     effective_clip = clip_length if clip_length > 0 else math.ceil(audio.shape[0] / 16000 * 25)
     pred_motions = engine.inference(audio, clip_length=effective_clip)
-    engine.rendering(audio, pred_motions, shape_id=shape_id, save_name=save_name)
-    torch.save(pred_motions.float().cpu(), os.path.join(output_dir, f"{save_name}_motions.pt"))
-    print(f"  -> {output_dir}/{save_name}.mp4")
+    torch.save(pred_motions.float().cpu(), motions_path)
 
-print(f"\nDone! {total} video(s) saved to {output_dir}")
+    if no_render:
+        print(f"  -> {motions_path}")
+    else:
+        engine.rendering(audio, pred_motions, shape_id=shape_id, save_name=save_name)
+        print(f"  -> {output_dir}/{save_name}.mp4")
+
+print(f"\nDone! {total} file(s) processed -> {output_dir}")
 PYEOF
